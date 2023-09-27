@@ -1,8 +1,8 @@
 # Bring! App - CLI
 
-Welcome to the Bring! App Command Line Interface (CLI) for Windows, a convenient tool designed exclusively for Windows
-users. This CLI empowers you to effortlessly manage your shopping list and recipes directly from the command line. One
-of its standout features is the ability to seamlessly integrate recipes into your shopping list, simplifying your meal
+Welcome to the Bring! App Command Line Interface (CLI) for Windows, a convience tool.
+This CLI empowers you to effortlessly manage your shopping list and recipes directly from the command line. 
+Its standout feature is the ability to seamlessly integrate recipes into your shopping list, simplifying your meal
 planning and grocery shopping.
 
 This was created because I got tired of remembering recipes and manually adding the ingredients to my shopping list.
@@ -20,19 +20,14 @@ It is also probably against the Bring! App's terms of service to use this tool. 
 
 (It's also my first Rust project, so it's probably not the best code you've ever seen.)
 
-## Pre-requisites
-
-To use the Bring! App CLI, you need to have the following software installed on your system:
-
-- [Rust](https://www.rust-lang.org/tools/install)
-- [Cargo](https://doc.rust-lang.org/cargo/getting-started/installation.html)
-
 ## Installation
 
-To get started, follow these simple installation steps:
+To get started, either download it from the current [release](https://github.com/ViktorWelbers/Bring-CLI/releases/tag/v0.0.1) or build it from source:
 
-1. Build the project using Cargo: `cargo build --release`.
-2. Copy the generated executable to a folder that is included in your system's PATH environment variable.
+1. Clone the project.
+2. Have [Rust](https://www.rust-lang.org/tools/install) and [Cargo](https://doc.rust-lang.org/cargo/getting-started/installation.html) installed
+3. Build the project using Cargo: `cargo build --release`.
+4. Copy the generated executable to a folder that is included in your system's PATH environment variable.
 
 ## Usage
 
@@ -79,7 +74,7 @@ The `bring recipe` command group allows you to manage recipes efficiently:
 - `bring recipe delete <recipe>`: Delete a recipe from the `C:\ProgramData\Bring\kv.db` file.
 
 Enhance your meal planning and shopping experience with the Bring! App Windows CLI.
-Enjoy the convenience of managing your shopping list and recipes seamlessly from the command line.
+Enjoy the convenience of managing your shopping list and recipes seamlessly from the command line:.
 
 ## TODO
 
@@ -88,6 +83,7 @@ Enjoy the convenience of managing your shopping list and recipes seamlessly from
 - [x] Add support for adding and removing recipes from the shopping list.
 - [ ] Add unit tests.
 - [ ] Add Generative AI support to parse recipes from websites and store them.
+- [ ] Add Support for Whisper to add models via Voice commands
 - [ ] Add support for multiple lists.
 - [ ] Add support for login via email and password.
 - [ ] Add support for login via Google.
