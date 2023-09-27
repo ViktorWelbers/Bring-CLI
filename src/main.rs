@@ -8,6 +8,7 @@ use kv::Database;
 
 mod bring;
 mod kv;
+mod scraper;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -92,6 +93,14 @@ fn set_list_uuid(database: &mut Database) -> String {
     uuid
 }
 
+
+fn unpack_ingredients_from_str(item: &str) -> Vec<String> {
+    item.split(" ")
+        .map(|s| s.to_string().remove(0).to_uppercase().to_string() + &s[1..])
+        .collect::<Vec<String>>()
+}
+
+
 #[tokio::main]
 async fn main() {
     let mut path = PathBuf::from(r"C:\ProgramData\Bring");
@@ -174,9 +183,7 @@ async fn main() {
                 let items = match database.get(&recipe) {
                     Some(item) => {
                         println!("Adding ingredients for {} to Bring list", recipe);
-                        item.split(" ")
-                            .map(|s| s.to_string().remove(0).to_uppercase().to_string() + &s[1..])
-                            .collect::<Vec<String>>()
+                        unpack_ingredients_from_str(item)
                     }
                     None => {
                         println!(
@@ -192,9 +199,7 @@ async fn main() {
                 let items = match database.get(&recipe) {
                     Some(item) => {
                         println!("Removing ingredients for {} to Bring list", recipe);
-                        item.split(" ")
-                            .map(|s| s.to_string().remove(0).to_uppercase().to_string() + &s[1..])
-                            .collect::<Vec<String>>()
+                        unpack_ingredients_from_str(item)
                     }
                     None => {
                         println!("Recipe {} not found. ", recipe);
