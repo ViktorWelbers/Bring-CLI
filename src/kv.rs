@@ -1,7 +1,6 @@
 use std::io::prelude::*;
 use std::{collections::HashMap, path::PathBuf};
 
-
 pub struct Database {
     map: HashMap<String, String>,
     path: PathBuf,

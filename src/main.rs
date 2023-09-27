@@ -1,11 +1,10 @@
-use std::fs::create_dir_all;
 use reqwest::Client;
+use std::fs::create_dir_all;
 use std::path::PathBuf;
 
-use clap::{Args, Parser, Subcommand};
 use bring::BringClient;
+use clap::{Args, Parser, Subcommand};
 use kv::Database;
-
 
 mod bring;
 mod kv;
@@ -76,7 +75,6 @@ enum RecipeCommands {
     },
 }
 
-
 fn set_auth_token(database: &mut Database) -> String {
     let bearer = String::from("Bearer ");
     let mut auth_token = String::new();
@@ -94,7 +92,6 @@ fn set_list_uuid(database: &mut Database) -> String {
     uuid
 }
 
-
 #[tokio::main]
 async fn main() {
     let mut path = PathBuf::from(r"C:\ProgramData\Bring");
@@ -102,12 +99,10 @@ async fn main() {
     path.push("kv.db");
     let mut database = Database::new(&path).expect("Database could not be created");
 
-
     let client = &Client::new();
     let cli = Cli::parse();
     let mut auth_token;
     let uuid;
-
 
     match database.get(&"auth_token".to_string()) {
         None => {
@@ -135,7 +130,8 @@ async fn main() {
     // matches just as you would the top level cmd
     match cli.command {
         Some(Commands::List {}) => {
-            bring_client.get_shopping_list(client)
+            bring_client
+                .get_shopping_list(client)
                 .await
                 .expect("List could not be fetched. Try update your auth token in config");
         }
@@ -153,72 +149,73 @@ async fn main() {
                 bring_client.remove_from_shopping_list(client, &items).await;
             }
         }
-        Some(Commands::Recipe(recipe)) =>
-            {
-                match recipe.command {
-                    Some(RecipeCommands::Delete { recipe }) => {
-                        database.remove(&recipe);
-                        println!("Recipe {} deleted", recipe)
-                    }
-                    Some(RecipeCommands::Store { recipe }) => {
-                        let mut name = recipe;
-                        let mut ingredients = String::new();
+        Some(Commands::Recipe(recipe)) => match recipe.command {
+            Some(RecipeCommands::Delete { recipe }) => {
+                database.remove(&recipe);
+                println!("Recipe {} deleted", recipe)
+            }
+            Some(RecipeCommands::Store { recipe }) => {
+                let mut name = recipe;
+                let mut ingredients = String::new();
 
-                        println!("Enter the recipe ingredients for {} (separated by space):", name);
-                        std::io::stdin().read_line(&mut ingredients).unwrap();
+                println!(
+                    "Enter the recipe ingredients for {} (separated by space):",
+                    name
+                );
+                std::io::stdin().read_line(&mut ingredients).unwrap();
 
-                        name = name.trim().to_string();
-                        ingredients = ingredients.trim().to_string();
-                        ingredients.retain(|c| !c.is_whitespace());
-                        database.insert(name.clone(), ingredients);
-                        println!("Recipe {} stored", name)
+                name = name.trim().to_string();
+                ingredients = ingredients.trim().to_string();
+                ingredients.retain(|c| !c.is_whitespace());
+                database.insert(name.clone(), ingredients);
+                println!("Recipe {} stored", name)
+            }
+            Some(RecipeCommands::Add { recipe }) => {
+                let items = match database.get(&recipe) {
+                    Some(item) => {
+                        println!("Adding ingredients for {} to Bring list", recipe);
+                        item.split(" ")
+                            .map(|s| s.to_string().remove(0).to_uppercase().to_string() + &s[1..])
+                            .collect::<Vec<String>>()
                     }
-                    Some(RecipeCommands::Add { recipe }) => {
-                        let items = match database.get(&recipe) {
-                            Some(item) => {
-                                println!("Adding ingredients for {} to Bring list", recipe);
-                                item
-                                    .split(" ")
-                                    .map(|s| s.to_string().remove(0).to_uppercase().to_string() + &s[1..])
-                                    .collect::<Vec<String>>()
-                            }
-                            None => {
-                                println!("Recipe {} not found. You need to it first via the 'store' command", recipe);
-                                return;
-                            }
-                        };
-                        bring_client.add_to_shopping_list(client, &items).await;
+                    None => {
+                        println!(
+                            "Recipe {} not found. You need to it first via the 'store' command",
+                            recipe
+                        );
+                        return;
                     }
-                    Some(RecipeCommands::Remove { recipe }) => {
-                        let items = match database.get(&recipe) {
-                            Some(item) => {
-                                println!("Removing ingredients for {} to Bring list", recipe);
-                                item
-                                    .split(" ")
-                                    .map(|s| s.to_string().remove(0).to_uppercase().to_string() + &s[1..])
-                                    .collect::<Vec<String>>()
-                            }
-                            None => {
-                                println!("Recipe {} not found. ", recipe);
-                                return;
-                            }
-                        };
-                        bring_client.remove_from_shopping_list(client, &items).await;
+                };
+                bring_client.add_to_shopping_list(client, &items).await;
+            }
+            Some(RecipeCommands::Remove { recipe }) => {
+                let items = match database.get(&recipe) {
+                    Some(item) => {
+                        println!("Removing ingredients for {} to Bring list", recipe);
+                        item.split(" ")
+                            .map(|s| s.to_string().remove(0).to_uppercase().to_string() + &s[1..])
+                            .collect::<Vec<String>>()
                     }
-                    Some(RecipeCommands::List {}) => {
-                        let data = database.list();
-                        if data.is_empty() {
-                            println!("No recipes stored");
-                        } else {
-                            println!("Stored recipes:");
-                            for (key, value) in data {
-                                println!("{}: {}", key, value);
-                            }
-                        }
+                    None => {
+                        println!("Recipe {} not found. ", recipe);
+                        return;
                     }
-                    None => {}
+                };
+                bring_client.remove_from_shopping_list(client, &items).await;
+            }
+            Some(RecipeCommands::List {}) => {
+                let data = database.list();
+                if data.is_empty() {
+                    println!("No recipes stored");
+                } else {
+                    println!("Stored recipes:");
+                    for (key, value) in data {
+                        println!("{}: {}", key, value);
+                    }
                 }
             }
+            None => {}
+        },
         Some(Commands::EditListUuid {}) => {
             println!("Your list uuid is: {}", uuid);
             println!("Do you want to change it? (y/n)");
@@ -229,7 +226,10 @@ async fn main() {
             }
         }
         Some(Commands::EditAuthtoken {}) => {
-            println!("Your auth token is: {}", auth_token.strip_prefix("Bearer ").unwrap());
+            println!(
+                "Your auth token is: {}",
+                auth_token.strip_prefix("Bearer ").unwrap()
+            );
             println!("Do you want to change it? (y/n)");
             let mut answer = String::new();
             std::io::stdin().read_line(&mut answer).unwrap();

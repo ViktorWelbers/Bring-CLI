@@ -1,13 +1,12 @@
-use reqwest::{Client, Response, StatusCode};
-use std::collections::HashMap;
-use serde_json::Value;
 use hyper::header::AUTHORIZATION;
+use reqwest::{Client, Response, StatusCode};
+use serde_json::Value;
+use std::collections::HashMap;
 
 enum RequestType {
     GET,
     PUT,
 }
-
 
 pub struct BringClient {
     list_uuid: String,
@@ -15,7 +14,13 @@ pub struct BringClient {
     url: String,
 }
 
-async fn make_request(client: &Client, url: &str, body: String, auth_token: &str, request_type: &RequestType) -> Result<Response, reqwest::Error> {
+async fn make_request(
+    client: &Client,
+    url: &str,
+    body: String,
+    auth_token: &str,
+    request_type: &RequestType,
+) -> Result<Response, reqwest::Error> {
     let res = match request_type {
         RequestType::GET => client.get(url),
         RequestType::PUT => client.put(url).body(body),
@@ -34,8 +39,18 @@ impl BringClient {
         }
     }
 
-    pub async fn get_shopping_list(&self, client: &Client) -> Result<HashMap<String, Value>, reqwest::Error> {
-        let res = make_request(client, &self.url, String::from(""), &self.auth_token, &RequestType::GET).await?;
+    pub async fn get_shopping_list(
+        &self,
+        client: &Client,
+    ) -> Result<HashMap<String, Value>, reqwest::Error> {
+        let res = make_request(
+            client,
+            &self.url,
+            String::from(""),
+            &self.auth_token,
+            &RequestType::GET,
+        )
+        .await?;
 
         let status: StatusCode = res.status().clone();
         let body: String = res.text().await?;
@@ -65,7 +80,12 @@ impl BringClient {
     pub async fn add_to_shopping_list(&self, client: &Client, items: &Vec<String>) {
         for item in items {
             let body = format!("uuid={}&purchase={}", self.list_uuid, item);
-            make_request(client, &self.url, body, &self.auth_token, &RequestType::PUT).await.expect(&*format!("Something went wrong with the request for item {}", item));
+            make_request(client, &self.url, body, &self.auth_token, &RequestType::PUT)
+                .await
+                .expect(&*format!(
+                    "Something went wrong with the request for item {}",
+                    item
+                ));
             println!("{} added to shopping list!", item)
         }
     }
@@ -73,7 +93,12 @@ impl BringClient {
     pub async fn remove_from_shopping_list(&self, client: &Client, items: &Vec<String>) {
         for item in items {
             let body = format!("uuid={}&remove={}", self.list_uuid, item);
-            make_request(client, &self.url, body, &self.auth_token, &RequestType::PUT).await.expect(&*format!("Something went wrong with the request for item {}", item));
+            make_request(client, &self.url, body, &self.auth_token, &RequestType::PUT)
+                .await
+                .expect(&*format!(
+                    "Something went wrong with the request for item {}",
+                    item
+                ));
             println!("{} removed from shopping list!", item)
         }
     }

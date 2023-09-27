@@ -83,8 +83,7 @@ Enjoy the convenience of managing your shopping list and recipes seamlessly from
 - [x] Add support for adding and removing recipes from the shopping list.
 - [ ] Add unit tests.
 - [ ] Add Generative AI support to parse recipes from websites and store them.
-- [ ] Add Support for Whisper to add models via Voice commands
-- [ ] Add support for multiple lists.
+- [ ] Add Support for Whisper to add to list via voice commands.
 - [ ] Add support for login via email and password.
 - [ ] Add support for login via Google.
 - [ ] Improve the way you can enter ingredients for recipes. (e.g. `bring recipe add "1 cup of flour"`)
