@@ -1,14 +1,15 @@
+use chrono::Local;
 use reqwest::Client;
+use std::error::Error;
 use std::fs::create_dir_all;
 use std::path::PathBuf;
 
 use bring::BringClient;
 use clap::{Args, Parser, Subcommand};
-use kv::Database;
+use database::Database;
 
 mod bring;
-mod kv;
-mod scraper;
+mod database;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -23,11 +24,8 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
+    Login {},
     /// edit/show the shopping list uuid if you want to use a different list
-    EditListUuid {},
-    /// edit/show the auth token if you want to update it
-    EditAuthtoken {},
-    /// Show the shopping list
     List {},
     /// Add an one or more items to the shopping list, seperated by space
     Add {
@@ -76,61 +74,118 @@ enum RecipeCommands {
     },
 }
 
-fn set_auth_token(database: &mut Database) -> String {
-    let bearer = String::from("Bearer ");
-    let mut auth_token = String::new();
-    println!("Please enter your auth token:");
-    std::io::stdin().read_line(&mut auth_token).unwrap();
-    database.insert("auth_token".to_string(), auth_token.trim().to_string());
-    bearer + &auth_token
+enum UserData {
+    AuthToken,
+    ListUuid,
+    ExpirationTimestamp,
 }
 
-fn set_list_uuid(database: &mut Database) -> String {
-    let mut uuid = String::new();
-    println!("Please enter the uuid of the list you want to use:");
-    std::io::stdin().read_line(&mut uuid).unwrap();
-    database.insert("list_uuid".to_string(), uuid.trim().to_string());
-    uuid
+struct BringAuthInfo {
+    auth_token: String,
+    list_uuid: String,
 }
 
 
-fn unpack_ingredients_from_str(item: &str) -> Vec<String> {
-    item.split(" ")
-        .map(|s| s.to_string().remove(0).to_uppercase().to_string() + &s[1..])
-        .collect::<Vec<String>>()
+impl UserData {
+    fn as_string(&self) -> String {
+        match self {
+            UserData::AuthToken => "auth_token".to_string(),
+            UserData::ListUuid => "list_uuid".to_string(),
+            UserData::ExpirationTimestamp => "expiration_timestamp".to_string(),
+        }
+    }
 }
 
+async fn login_prompt(database: &mut Database) -> Result<BringAuthInfo, Box<dyn Error>> {
+    println!("Please login with your credentials");
+    println!("Enter your Bring! Mail: ");
+    let mut username = String::new();
+    std::io::stdin().read_line(&mut username).unwrap();
+    println!("Enter your Password: ");
+    let mut password = String::new();
+    std::io::stdin().read_line(&mut password).unwrap();
+    let login_info =
+        bring::login_with_credentials(&mut username.trim(), &mut password.trim()).await?;
+
+    database.insert(
+        UserData::AuthToken.as_string(),
+        login_info.auth_token.to_string(),
+    );
+    database.insert(
+        UserData::ListUuid.as_string(),
+        login_info.list_uuid.to_string(),
+    );
+    database.insert(
+        UserData::ExpirationTimestamp.as_string(),
+        login_info.expiration_timestamp.to_string(),
+    );
+    Ok(BringAuthInfo {
+        auth_token: login_info.auth_token,
+        list_uuid: login_info.list_uuid,
+    })
+}
+
+async fn fetch_authentication_data(database: &mut Database) -> BringAuthInfo {
+    let mut token = String::new();
+    let mut list_uuid = String::new();
+
+    if let Some(saved_token) = database.get(&UserData::AuthToken.as_string()) {
+        token = "Bearer ".to_string() + saved_token;
+    }
+
+    if let Some(saved_uuid) = database.get(&UserData::ListUuid.as_string()) {
+        list_uuid = saved_uuid.to_string();
+    }
+
+    if token.is_empty() || list_uuid.is_empty() {
+        return login_prompt(database).await.unwrap();
+    }
+
+    match database.get(&UserData::ExpirationTimestamp.as_string()) {
+        Some(expiration_date) => {
+            if expiration_date.parse::<i64>().unwrap() < Local::now().timestamp() {
+                println!("Auth token expired");
+                return login_prompt(database).await.unwrap();
+            }
+        }
+        None => {
+            println!("No token expiration date found. Requesting new token");
+            return login_prompt(database).await.unwrap();
+        }
+    }
+
+    BringAuthInfo {
+        auth_token: token,
+        list_uuid,
+    }
+}
+
+fn create_database(path: &mut PathBuf) -> Database {
+    create_dir_all(path.clone()).expect("Could not create directory");
+    path.push("kv.db");
+    Database::new(&path).expect("Database could not be created")
+}
 
 #[tokio::main]
 async fn main() {
     let mut path = PathBuf::from(r"C:\ProgramData\Bring");
-    create_dir_all(path.clone()).expect("Could not create directory");
-    path.push("kv.db");
-    let mut database = Database::new(&path).expect("Database could not be created");
+    let mut database = create_database(&mut path);
+    let mut auth_token: String = String::new();
+    let mut uuid: String = String::new();
 
     let client = &Client::new();
     let cli = Cli::parse();
-    let mut auth_token;
-    let uuid;
 
-    match database.get(&"auth_token".to_string()) {
-        None => {
-            auth_token = set_auth_token(&mut database);
+    if let Some(Commands::Login {}) = cli.command {
+        let login_result = login_prompt(&mut database).await;
+        if let Some(bring) = login_result.ok() {
+            auth_token = bring.auth_token;
+            uuid = bring.list_uuid;
         }
-        Some(token) => {
-            let bearer = String::from("Bearer ");
-            auth_token = token.to_string();
-            auth_token = bearer + &auth_token;
-        }
-    }
-
-    match database.get(&"list_uuid".to_string()) {
-        None => {
-            uuid = set_list_uuid(&mut database);
-        }
-        Some(list_uuid) => {
-            uuid = list_uuid.to_string();
-        }
+    } else {
+        let bring_auth_info = fetch_authentication_data(&mut database).await;
+        auth_token = bring_auth_info.auth_token;
+        uuid = bring_auth_info.list_uuid;
     }
 
     let bring_client = BringClient::new(&uuid, &auth_token);
@@ -168,7 +223,7 @@ async fn main() {
                 let mut ingredients = String::new();
 
                 println!(
-                    "Enter the recipe ingredients for {} (separated by space):",
+                    "Enter the recipe ingredients for {} (separated by comma):",
                     name
                 );
                 std::io::stdin().read_line(&mut ingredients).unwrap();
@@ -183,7 +238,7 @@ async fn main() {
                 let items = match database.get(&recipe) {
                     Some(item) => {
                         println!("Adding ingredients for {} to Bring list", recipe);
-                        unpack_ingredients_from_str(item)
+                        bring::unpack_ingredients_from_str(item)
                     }
                     None => {
                         println!(
@@ -193,13 +248,14 @@ async fn main() {
                         return;
                     }
                 };
+                println!("{}", items.join(","));
                 bring_client.add_to_shopping_list(client, &items).await;
             }
             Some(RecipeCommands::Remove { recipe }) => {
                 let items = match database.get(&recipe) {
                     Some(item) => {
                         println!("Removing ingredients for {} to Bring list", recipe);
-                        unpack_ingredients_from_str(item)
+                        bring::unpack_ingredients_from_str(item)
                     }
                     None => {
                         println!("Recipe {} not found. ", recipe);
@@ -219,29 +275,13 @@ async fn main() {
                     }
                 }
             }
-            None => {}
+            None => {
+                println!("No recipe command was used");
+            }
         },
-        Some(Commands::EditListUuid {}) => {
-            println!("Your list uuid is: {}", uuid);
-            println!("Do you want to change it? (y/n)");
-            let mut answer = String::new();
-            std::io::stdin().read_line(&mut answer).unwrap();
-            if answer.trim() == "y" {
-                set_list_uuid(&mut database);
-            }
+        None => {
+            println!("No command was used");
         }
-        Some(Commands::EditAuthtoken {}) => {
-            println!(
-                "Your auth token is: {}",
-                auth_token.strip_prefix("Bearer ").unwrap()
-            );
-            println!("Do you want to change it? (y/n)");
-            let mut answer = String::new();
-            std::io::stdin().read_line(&mut answer).unwrap();
-            if answer.trim() == "y" {
-                set_auth_token(&mut database);
-            }
-        }
-        None => {}
+        _ => println!("No command was used"),
     }
 }

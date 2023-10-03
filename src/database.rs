@@ -43,6 +43,7 @@ impl Database {
         let mut data = self.map.clone();
         data.remove(&"auth_token".to_string());
         data.remove(&"list_uuid".to_string());
+        data.remove(&"expiration_timestamp".to_string());
         data
     }
 }
