@@ -34,21 +34,15 @@ To get started, either download it from the current [release](https://github.com
 ### Login
 
 Before you can start using the Bring! App CLI, you need to log in to your Bring! account. Follow these steps to
-authenticate:
+authenticate.
 
-1. Retrieve your authentication token by inspecting the network traffic in your web browser's developer tools. Look for
-   the `Authorization` header in the request to `https://api.getbring.com/rest/bringlists`. Copy the token (excluding
-   the `Bearer` prefix).
-2. Obtain the UUID of the shopping list you want to manage. Look for the `listUuid` field in the response of the network
-   call to `lists` in your browser's developer tools.
+run `bring login` and enter your email and password when prompted. You can use this to change your login details at any
+time.
 
-Once you have both the token and the list UUID, run the following commands to set up your credentials:
+Otherwise, if you haven't logged in yet, you will be prompted to enter your email and password.
+Lastly, if your token has expired, you will be prompted to enter your password again.
 
-- To log in, just execute `bring` and paste your token and list UUID when prompted.
-- To change your token or list UUID, use the `bring edit-authtoken` or `bring edit-list-uuid` commands, respectively.
-
-Your authentication details are securely stored in a configuration file located at `C:\ProgramData\Bring\kv.db`.
-
+Your token and your default list are stored in a configuration file located at `C:\ProgramData\Bring\kv.db`.
 ### Commands
 
 #### `bring add <item>`
@@ -81,6 +75,5 @@ Enjoy the convenience of managing your shopping list and recipes seamlessly from
 - [x] Add support for adding and removing items from the shopping list.
 - [x] Add support for listing all items on the shopping list.
 - [x] Add support for adding and removing recipes from the shopping list.
-- [ ] Add unit tests.
-- [ ] Add support for login via email and password.
+- [x] Add support for login via email and password.
 - [ ] Improve the way you can enter ingredients for recipes. (e.g. `bring recipe add "1 cup of flour"`)
