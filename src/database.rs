@@ -1,3 +1,5 @@
+use crate::users::Storage;
+use std::fs::create_dir_all;
 use std::io::prelude::*;
 use std::{collections::HashMap, path::PathBuf};
 
@@ -26,17 +28,8 @@ impl Database {
         let path = path.clone();
         Ok(Database { map, path })
     }
-
-    pub fn insert(&mut self, key: String, value: String) {
-        self.map.insert(key, value);
-    }
-
     pub fn remove(&mut self, key: &String) {
         self.map.remove(key);
-    }
-
-    pub fn get(&self, key: &String) -> Option<&String> {
-        self.map.get(key)
     }
 
     pub fn list(&self) -> HashMap<String, String> {
@@ -45,6 +38,16 @@ impl Database {
         data.remove(&"list_uuid".to_string());
         data.remove(&"expiration_timestamp".to_string());
         data
+    }
+}
+
+impl Storage for Database {
+    fn insert(&mut self, key: String, value: String) {
+        self.map.insert(key, value);
+    }
+
+    fn get(&self, key: &str) -> Option<&String> {
+        self.map.get(key)
     }
 }
 
@@ -62,6 +65,11 @@ fn do_flush(database: &Database) -> std::io::Result<()> {
         contents.push_str(value);
         contents.push('\n');
     }
-    std::fs::write(database.path.clone(), contents).expect("Unable to create kv.db");
-    Ok(())
+    std::fs::write(database.path.clone(), contents)
+}
+
+pub fn create_database(path: &mut PathBuf) -> Result<Database, std::io::Error> {
+    create_dir_all(path.clone())?;
+    path.push("kv.db");
+    Database::new(&path)
 }

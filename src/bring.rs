@@ -10,6 +10,19 @@ enum RequestType {
     PUT,
     POST,
 }
+pub enum Action {
+    REMOVE,
+    ADD,
+}
+
+impl std::fmt::Display for Action {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Action::REMOVE => write!(f, "removed from"),
+            Action::ADD => write!(f, "added to"),
+        }
+    }
+}
 
 pub struct LoginInfo {
     pub auth_token: String,
@@ -18,6 +31,7 @@ pub struct LoginInfo {
 }
 
 pub struct BringClient {
+    client: Client,
     list_uuid: String,
     auth_token: String,
     url: String,
@@ -43,7 +57,7 @@ async fn make_request(
     Ok(res)
 }
 
-pub async fn login_with_credentials(
+pub async fn request_bring_credentials(
     user: &str,
     password: &str,
 ) -> Result<LoginInfo, Box<dyn Error>> {
@@ -72,6 +86,7 @@ pub async fn login_with_credentials(
 impl BringClient {
     pub fn new(list_uuid: &str, auth_token: &str) -> Self {
         BringClient {
+            client: Client::new(),
             url: String::from("https://api.getbring.com/rest/v2/bringlists/") + list_uuid,
             list_uuid: String::from(list_uuid),
             auth_token: String::from(auth_token),
@@ -86,12 +101,13 @@ impl BringClient {
         let url = String::from("https://api.getbring.com/rest/v2/bringauth");
         let request_body = format!("email={}&password={}", email, password);
         let res = make_request(client, &url, request_body, &RequestType::POST, None).await?;
-
-        if res.status() != StatusCode::OK {
+        let status_code = res.status();
+        if status_code != StatusCode::OK {
             println!("Login failed with the provided credentials failed.");
+            let response_body = res.text().await?;
             return Err(Box::new(std::io::Error::new(
                 std::io::ErrorKind::Other,
-                "Login failed with the provided credentials failed.",
+                format!("Could not login {}: {}", status_code, response_body),
             )));
         }
         let response_body = res.text().await?;
@@ -101,9 +117,9 @@ impl BringClient {
         Ok(response)
     }
 
-    pub async fn get_shopping_list(&self, client: &Client) -> Result<(), Box<dyn Error>> {
+    pub async fn get_shopping_list(&self) -> Result<(), Box<dyn Error>> {
         let res = make_request(
-            client,
+            &self.client,
             &self.url,
             String::from(""),
             &RequestType::GET,
@@ -135,72 +151,88 @@ impl BringClient {
                 }
             }
         } else {
-            println!("Something went wrong with the request");
+            return Err(Box::new(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!("Could not get shopping list {}: {}", status, body),
+            )));
         }
         Ok(())
     }
 
-    pub async fn add_to_shopping_list(&self, client: &Client, items: &Vec<String>) {
-        for item in items {
-            let body = format!("uuid={}&purchase={}", self.list_uuid, item);
-            let response = make_request(
-                client,
-                &self.url,
-                body,
-                &RequestType::PUT,
-                Some(&self.auth_token),
-            )
-            .await
-            .expect(&*format!(
-                "Something went wrong with the request for item {}",
-                item
-            ));
-            match response.status() {
-                StatusCode::OK | StatusCode::NO_CONTENT => {
-                    println!("{} added to shopping list!", item)
-                }
-                _ => {
-                    println!(
-                        "Could not add to shopping list due to error: {}",
-                        response.status()
-                    )
-                }
-            }
-        }
-    }
+    /// edit_shopping_list changes the shopping list by adding or removing an item
+    /// from the list.
+    ///
+    /// The item is specified by the item parameter.
+    ///
+    /// The specification parameter is optional and is used to specify the amount of the item.
+    ///
+    /// The action parameter is used to specify whether the item should be added or
+    /// removed from the list.
+    pub async fn edit_shopping_list(
+        &self,
+        mut item: String,
+        specification: Option<&str>,
+        action: Action,
+    ) -> Result<(), Box<dyn Error>> {
+        item = capitalize_first_letter(&item);
+        let body = match action {
+            Action::ADD => format!("uuid={}&purchase={}", self.list_uuid, item,),
+            Action::REMOVE => format!("uuid={}&remove={}", self.list_uuid, item),
+        };
+        let body = match specification {
+            Some(spec) => format!("{}&specification={}", body, spec),
+            None => body,
+        };
+        let response = make_request(
+            &self.client,
+            &self.url,
+            body,
+            &RequestType::PUT,
+            Some(&self.auth_token),
+        )
+        .await?;
 
-    pub async fn remove_from_shopping_list(&self, client: &Client, items: &Vec<String>) {
-        for item in items {
-            let body = format!("uuid={}&remove={}", self.list_uuid, item);
-            let response = make_request(
-                client,
-                &self.url,
-                body,
-                &RequestType::PUT,
-                Some(&self.auth_token),
-            )
-            .await
-            .expect(&*format!(
-                "Something went wrong with the request for item {}",
-                item
-            ));
-            match response.status() {
-                StatusCode::OK | StatusCode::NO_CONTENT => {
-                    println!("{} removed from shopping list!", item)
-                }
-                _ => {
-                    println!(
-                        "Could not remove from shopping list due to error: {} ",
-                        response.status()
-                    )
-                }
+        match response.status() {
+            StatusCode::OK | StatusCode::NO_CONTENT => {
+                println!("{} {} shopping list!", item, action)
+            }
+            _ => {
+                let body = response.text().await?;
+                return Err(Box::new(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    format!("Could not {} {} {}: {}", action, item, self.list_uuid, body),
+                )));
             }
         }
+        Ok(())
     }
 }
 
-pub fn unpack_ingredients_from_str(item: &str) -> Vec<String> {
-    item.split(",")
-        .map(|s| s.to_string().remove(0).to_uppercase().to_string() + &s[1..])
-        .collect::<Vec<String>>()
+pub fn capitalize_first_letter(item: &str) -> String {
+    let mut chars = item.chars();
+    match chars.next() {
+        None => String::new(),
+        Some(f) => f.to_uppercase().collect::<String>() + &chars.as_str(),
+    }
+}
+
+pub async fn add_or_remove_item_shopping_list(
+    client: BringClient,
+    item: Vec<String>,
+    info: Option<Vec<String>>,
+    action: Action,
+) -> Result<(), Box<dyn Error>> {
+    if item.is_empty() {
+        println!("Please provide an item to remove.");
+    } else {
+        let item = item.join(" ");
+        if let Some(info_str) = info {
+            client
+                .edit_shopping_list(item, Some(info_str.join(" ").as_str()), action)
+                .await?;
+        } else {
+            client.edit_shopping_list(item, None, action).await?;
+        }
+    }
+    Ok(())
 }
