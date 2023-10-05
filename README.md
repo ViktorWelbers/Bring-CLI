@@ -1,3 +1,7 @@
+<p align="center">
+    <img width=300px; src="https://github.com/ViktorWelbers/Bring-CLI/assets/74675555/1d419b9d-e295-47dc-85e5-ecd4f51f5784?raw=true" alt="Sublime's custom image"/>
+</p>
+
 # Bring! App - CLI
 
 Welcome to the Bring! App Command Line Interface (CLI) for Windows, a convience tool.
