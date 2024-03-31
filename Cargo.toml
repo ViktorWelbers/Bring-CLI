@@ -16,6 +16,7 @@ reqwest = "0.11.20"
 clap = { version = "4.4.4", features = ["derive"] }
 uuid = { version = "1.4.1", features = ["v4"] }
 chrono = "0.4.31"
+rpassword = "7.3.1"
 
 [build]
 target = "x86_64-pc-windows-msvc"

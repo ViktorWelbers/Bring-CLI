@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use std::process;
 
 use bring::Action;
 use bring::BringClient;
@@ -60,9 +61,8 @@ async fn main() {
 
     if let Some(Commands::Login {}) = cli.command {
         match users::new_login(&mut database).await {
-            Ok(auth_info) => {
-                auth_token = auth_info.auth_token;
-                uuid = auth_info.list_uuid;
+            Ok(_auth_info) => {
+                process::exit(1)
             }
             Err(e) => {
                 println!("Error: {}", e);

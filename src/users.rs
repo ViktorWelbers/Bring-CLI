@@ -30,10 +30,8 @@ pub async fn new_login(storage: &mut dyn Storage) -> Result<AuthInfo, Box<dyn Er
     let mut username = String::new();
     std::io::stdin().read_line(&mut username)?;
     println!("Enter your Password: ");
-    let mut password = String::new();
-    std::io::stdin().read_line(&mut password)?;
-    let login_info =
-        bring::request_bring_credentials(&mut username.trim(), &mut password.trim()).await?;
+    let password = rpassword::read_password().unwrap();
+    let login_info = bring::request_bring_credentials(&username.trim(), &password.trim()).await?;
     storage.insert(auth_token().to_owned(), login_info.auth_token.to_string());
     storage.insert(list_uuid().to_owned(), login_info.list_uuid.to_string());
     storage.insert(
@@ -45,9 +43,7 @@ pub async fn new_login(storage: &mut dyn Storage) -> Result<AuthInfo, Box<dyn Er
         list_uuid: login_info.list_uuid,
     })
 }
-pub async fn use_stored_login(
-    storage: &mut dyn Storage,
-) -> Result<AuthInfo, Box<dyn Error>> {
+pub async fn use_stored_login(storage: &mut dyn Storage) -> Result<AuthInfo, Box<dyn Error>> {
     let mut token = String::new();
     let mut uuid = String::new();
 
