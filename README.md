@@ -9,8 +9,6 @@ This CLI empowers you to effortlessly manage your shopping list directly from th
 
 This was created because I got tired of picking up my phone every time I wanted to add something to my shopping list.
 
-I wanted to be able to add items to my shopping list with a single command while on my PC.
-
 ## Disclaimer
 
 This is not an official Bring! App product. It is a third-party tool that uses the Bring! App API to manage your
