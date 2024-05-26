@@ -46,6 +46,14 @@ Lastly, if your token has expired, you will be prompted to enter your password a
 
 Your token and your default list are stored in a configuration file located at `C:\ProgramData\Bring\kv.db`.
 
+If your token expires, you will be prompted to log in again, but it will remember the username or email you have used to
+log in.
+
+### Logout
+
+If you want to log out of your account, you can run `bring logout`. This will wipe your entire database (token, username
+and default list).
+
 ### Commands
 
 #### `bring add <item> -i <extra-info>`
