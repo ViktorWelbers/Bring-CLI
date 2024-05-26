@@ -28,7 +28,7 @@ enum Commands {
     Login {},
     /// edit/show the shopping list uuid if you want to use a different list
     List {},
-    /// Add an one or more items to the shopping list, seperated by space
+    /// Add one or more items to the shopping list, seperated by space
     Add {
         #[arg(value_name = "ITEM")]
         item: Vec<String>,
@@ -57,28 +57,30 @@ fn main() {
             return;
         }
     };
-
+    let mut user_management = users::UserManagement::new(&mut database);
     let cli = Cli::parse();
 
     match cli.command {
         Some(Commands::Login {}) => {
-            match users::new_login(&mut database) {
+            match user_management.new_login() {
                 Ok(_auth_info) => {}
                 Err(e) => {
                     println!("Error: {}", e);
                 }
             }
+            drop(database);
             exit(0);
         }
         Some(Commands::Logout {}) => {
-            users::logout(&mut database);
+            user_management.logout();
             println!("You were logged out");
+            drop(database);
             exit(0)
         }
         _ => {}
     }
 
-    match users::use_stored_login(&mut database) {
+    match user_management.use_stored_login() {
         Ok(auth_info) => {
             auth_token = auth_info.auth_token;
             uuid = auth_info.list_uuid;

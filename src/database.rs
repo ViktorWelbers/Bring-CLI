@@ -3,8 +3,9 @@ use std::fs::create_dir_all;
 use std::io::prelude::*;
 use std::{collections::HashMap, path::PathBuf};
 
+#[derive(Debug)]
 pub struct Database {
-    map: HashMap<String, String>,
+    pub map: HashMap<String, String>,
     path: PathBuf,
 }
 
