@@ -1,6 +1,7 @@
 use chrono::Local;
 use hyper::header::AUTHORIZATION;
-use reqwest::{Client, Response, StatusCode};
+use reqwest::blocking::{Client, Response};
+use reqwest::StatusCode;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::error::Error;
@@ -37,7 +38,7 @@ pub struct BringClient {
     url: String,
 }
 
-async fn make_request(
+fn make_request(
     client: &Client,
     url: &str,
     body: String,
@@ -53,16 +54,13 @@ async fn make_request(
         Some(token) => res.header(AUTHORIZATION, token),
         None => res,
     };
-    let res = res.send().await?;
+    let res = res.send()?;
     Ok(res)
 }
 
-pub async fn request_bring_credentials(
-    user: &str,
-    password: &str,
-) -> Result<LoginInfo, Box<dyn Error>> {
+pub fn request_bring_credentials(user: &str, password: &str) -> Result<LoginInfo, Box<dyn Error>> {
     let client = Client::new();
-    let response = BringClient::get_token_and_list_uuid(&client, user, password).await?;
+    let response = BringClient::get_token_and_list_uuid(&client, user, password)?;
     let auth_token = response["access_token"]
         .as_str()
         .ok_or("Could not get token")?
@@ -93,42 +91,41 @@ impl BringClient {
         }
     }
 
-    async fn get_token_and_list_uuid(
+    fn get_token_and_list_uuid(
         client: &Client,
         email: &str,
         password: &str,
     ) -> Result<HashMap<String, Value>, Box<dyn Error>> {
         let url = String::from("https://api.getbring.com/rest/v2/bringauth");
         let request_body = format!("email={}&password={}", email, password);
-        let res = make_request(client, &url, request_body, &RequestType::POST, None).await?;
+        let res = make_request(client, &url, request_body, &RequestType::POST, None)?;
         let status_code = res.status();
         if status_code != StatusCode::OK {
             println!("Login failed with the provided credentials failed.");
-            let response_body = res.text().await?;
+            let response_body = res.text()?;
             return Err(Box::new(std::io::Error::new(
                 std::io::ErrorKind::Other,
                 format!("Could not login {}: {}", status_code, response_body),
             )));
         }
-        let response_body = res.text().await?;
+        let response_body = res.text()?;
         let response: HashMap<String, Value> = serde_json::from_str(&response_body)?;
 
         println!("Login successful!");
         Ok(response)
     }
 
-    pub async fn get_shopping_list(&self) -> Result<(), Box<dyn Error>> {
+    pub fn get_shopping_list(&self) -> Result<(), Box<dyn Error>> {
         let res = make_request(
             &self.client,
             &self.url,
             String::from(""),
             &RequestType::GET,
             Some(&self.auth_token),
-        )
-        .await?;
+        )?;
 
         let status: StatusCode = res.status();
-        let body: String = res.text().await?;
+        let body: String = res.text()?;
 
         if status == StatusCode::OK {
             let response: HashMap<String, Value> = serde_json::from_str(&body)?;
@@ -168,7 +165,7 @@ impl BringClient {
     ///
     /// The action parameter is used to specify whether the item should be added or
     /// removed from the list.
-    pub async fn edit_shopping_list(
+    pub fn edit_shopping_list(
         &self,
         mut item: String,
         specification: Option<&str>,
@@ -189,15 +186,14 @@ impl BringClient {
             body,
             &RequestType::PUT,
             Some(&self.auth_token),
-        )
-        .await?;
+        )?;
 
         match response.status() {
             StatusCode::OK | StatusCode::NO_CONTENT => {
                 println!("{} {} shopping list!", item, action)
             }
             _ => {
-                let body = response.text().await?;
+                let body = response.text()?;
                 return Err(Box::new(std::io::Error::new(
                     std::io::ErrorKind::Other,
                     format!("Could not {} {} {}: {}", action, item, self.list_uuid, body),
@@ -212,11 +208,11 @@ pub fn capitalize_first_letter(item: &str) -> String {
     let mut chars = item.chars();
     match chars.next() {
         None => String::new(),
-        Some(f) => f.to_uppercase().collect::<String>() + &chars.as_str(),
+        Some(f) => f.to_uppercase().collect::<String>() + chars.as_str(),
     }
 }
 
-pub async fn add_or_remove_item_shopping_list(
+pub fn add_or_remove_item_shopping_list(
     client: BringClient,
     item: Vec<String>,
     info: Option<Vec<String>>,
@@ -227,11 +223,9 @@ pub async fn add_or_remove_item_shopping_list(
     } else {
         let item = item.join(" ");
         if let Some(info_str) = info {
-            client
-                .edit_shopping_list(item, Some(info_str.join(" ").as_str()), action)
-                .await?;
+            client.edit_shopping_list(item, Some(info_str.join(" ").as_str()), action)?
         } else {
-            client.edit_shopping_list(item, None, action).await?;
+            client.edit_shopping_list(item, None, action)?;
         }
     }
     Ok(())

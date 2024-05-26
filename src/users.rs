@@ -5,6 +5,7 @@ use std::error::Error;
 pub trait Storage {
     fn insert(&mut self, key: String, value: String);
     fn get(&self, key: &str) -> Option<&String>;
+    fn remove(&mut self, key: &str);
 }
 
 pub struct AuthInfo {
@@ -12,30 +13,39 @@ pub struct AuthInfo {
     pub list_uuid: String,
 }
 
-pub fn auth_token() -> &'static str {
-    "auth_token"
+pub struct UserMgmt{
+    storage: dyn Storage
 }
 
-pub fn list_uuid() -> &'static str {
-    "list_uuid"
-}
+pub const AUTH_TOKEN: &str = "auth_token";
+pub const LIST_UUID: &str = "list_uuid";
+pub const EXPIRATION_TIMESTAMP: &str = "expiration_timestamp";
+pub const USERNAME: &str = "username";
 
-pub fn expiration_timestamp() -> &'static str {
-    "expiration_timestamp"
-}
+pub fn new_login(storage: &mut dyn Storage) -> Result<AuthInfo, Box<dyn Error>> {
+    let username = match storage.get(USERNAME) {
+        None => {
+            let mut temp = String::new();
+            println!("Please login with your credentials");
+            println!("Enter your Bring! Mail: ");
+            std::io::stdin().read_line(&mut temp)?;
+            temp
+        }
 
-pub async fn new_login(storage: &mut dyn Storage) -> Result<AuthInfo, Box<dyn Error>> {
-    println!("Please login with your credentials");
-    println!("Enter your Bring! Mail: ");
-    let mut username = String::new();
-    std::io::stdin().read_line(&mut username)?;
+        Some(user) => {
+            println!("Found existing user: {}", user);
+            user.to_string()
+        }
+    };
+
     println!("Enter your Password: ");
     let password = rpassword::read_password().unwrap();
-    let login_info = bring::request_bring_credentials(&username.trim(), &password.trim()).await?;
-    storage.insert(auth_token().to_owned(), login_info.auth_token.to_string());
-    storage.insert(list_uuid().to_owned(), login_info.list_uuid.to_string());
+    let login_info = bring::request_bring_credentials(username.trim(), password.trim())?;
+    storage.insert(AUTH_TOKEN.to_owned(), login_info.auth_token.to_string());
+    storage.insert(LIST_UUID.to_owned(), login_info.list_uuid.to_string());
+    storage.insert(USERNAME.to_owned(), username.to_string());
     storage.insert(
-        expiration_timestamp().to_owned(),
+        EXPIRATION_TIMESTAMP.to_owned(),
         login_info.expiration_timestamp.to_string(),
     );
     Ok(AuthInfo {
@@ -43,32 +53,33 @@ pub async fn new_login(storage: &mut dyn Storage) -> Result<AuthInfo, Box<dyn Er
         list_uuid: login_info.list_uuid,
     })
 }
-pub async fn use_stored_login(storage: &mut dyn Storage) -> Result<AuthInfo, Box<dyn Error>> {
+
+pub fn use_stored_login(storage: &mut dyn Storage) -> Result<AuthInfo, Box<dyn Error>> {
     let mut token = String::new();
     let mut uuid = String::new();
 
-    if let Some(saved_token) = storage.get(auth_token()) {
+    if let Some(saved_token) = storage.get(AUTH_TOKEN) {
         token = "Bearer ".to_string() + saved_token;
     }
 
-    if let Some(saved_uuid) = storage.get(list_uuid()) {
+    if let Some(saved_uuid) = storage.get(LIST_UUID) {
         uuid = saved_uuid.to_string();
     }
 
     if token.is_empty() || uuid.is_empty() {
-        return new_login(storage).await;
+        return new_login(storage);
     }
 
-    match storage.get(expiration_timestamp()) {
+    match storage.get(EXPIRATION_TIMESTAMP) {
         Some(expiration_date) => {
             if expiration_date.parse::<i64>().unwrap() < Local::now().timestamp() {
                 println!("Auth token expired");
-                return new_login(storage).await;
+                return new_login(storage);
             }
         }
         None => {
             println!("No token expiration date found. Requesting new token");
-            return new_login(storage).await;
+            return new_login(storage);
         }
     }
 
@@ -76,4 +87,11 @@ pub async fn use_stored_login(storage: &mut dyn Storage) -> Result<AuthInfo, Box
         auth_token: token,
         list_uuid: uuid,
     })
+}
+
+pub fn logout(storage: &mut dyn Storage) {
+    storage.remove(USERNAME);
+    storage.remove(EXPIRATION_TIMESTAMP);
+    storage.remove(LIST_UUID);
+    storage.remove(AUTH_TOKEN);
 }
