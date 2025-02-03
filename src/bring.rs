@@ -51,7 +51,19 @@ fn make_request(
         RequestType::POST => client
             .post(url)
             .body(body)
-            .header("Content-Type", "application/x-www-form-urlencoded"),
+            .header("Content-Type", "application/x-www-form-urlencoded")
+            .header("Accept", "application/json, text/plain, */*")
+            .header("Accept-Language", "de,en-US;q=0.7,en;q=0.3")
+            .header("Accept-Encoding", "gzip, deflate, br, zstd")
+            .header("X-BRING-CLIENT", "webApp")
+            .header("Origin", "https://web.getbring.com")
+            .header("Connection", "keep-alive")
+            .header("Referer", "https://web.getbring.com/")
+            .header("Sec-Fetch-Dest", "empty")
+            .header("Sec-Fetch-Mode", "cors")
+            .header("Sec-Fetch-Site", "same-site")
+            .header("Priority", "u=0")
+            .header("TE", "trailers"),
     };
     let res = match auth_token {
         Some(token) => res.header(AUTHORIZATION, token),
