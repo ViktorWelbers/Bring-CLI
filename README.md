@@ -4,7 +4,7 @@
 
 # Bring! App - CLI
 
-Welcome to the Bring! App Command Line Interface (CLI) for Windows, a convience tool.
+Welcome to the Bring! App Command Line Interface (CLI), a convience tool.
 This CLI empowers you to effortlessly manage your shopping list directly from the command line.
 
 This was created because I got tired of picking up my phone every time I wanted to add something to my shopping list.
@@ -44,7 +44,7 @@ time.
 Otherwise, if you haven't logged in yet, you will be prompted to enter your email and password.
 Lastly, if your token has expired, you will be prompted to enter your password again.
 
-Your token and your default list are stored in a configuration file located at `C:\ProgramData\Bring\kv.db`.
+Your token and your default list are stored in a configuration file located at `C:\ProgramData\Bring\kv.db` or at `/var/lib/bring`
 
 If your token expires, you will be prompted to log in again, but it will remember the username or email you have used to
 log in.
