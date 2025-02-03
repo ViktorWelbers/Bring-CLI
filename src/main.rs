@@ -1,3 +1,4 @@
+use std::env;
 use std::path::PathBuf;
 use std::process::exit;
 
@@ -47,7 +48,11 @@ enum Commands {
 }
 
 fn main() {
-    let mut path = PathBuf::from(r"C:\ProgramData\Bring");
+    let mut path = if env::consts::OS == "windows" {
+        PathBuf::from(r"C:\ProgramData\Bring")
+    } else {
+        PathBuf::from("/var/lib/bring")
+    };
     let mut auth_token: String = String::new();
     let mut uuid: String = String::new();
     let mut database = match database::create_database(&mut path) {

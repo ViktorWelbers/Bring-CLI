@@ -1,4 +1,4 @@
-use crate::users::{Storage, AUTH_TOKEN, EXPIRATION_TIMESTAMP, LIST_UUID};
+use crate::users::Storage;
 use std::fs::create_dir_all;
 use std::io::prelude::*;
 use std::{collections::HashMap, path::PathBuf};
@@ -28,14 +28,6 @@ impl Database {
         }
         let path = path.clone();
         Ok(Database { map, path })
-    }
-
-    pub fn list(&self) -> HashMap<String, String> {
-        let mut data = self.map.clone();
-        data.remove(&AUTH_TOKEN.to_string());
-        data.remove(&LIST_UUID.to_string());
-        data.remove(&EXPIRATION_TIMESTAMP.to_string());
-        data
     }
 }
 
@@ -73,5 +65,5 @@ fn do_flush(database: &Database) -> std::io::Result<()> {
 pub fn create_database(path: &mut PathBuf) -> Result<Database, std::io::Error> {
     create_dir_all(path.clone())?;
     path.push("kv.db");
-    Database::new(&path)
+    Database::new(path)
 }
