@@ -48,28 +48,26 @@ fn make_request(
     let res = match request_type {
         RequestType::GET => client.get(url),
         RequestType::PUT => client.put(url).body(body),
-        RequestType::POST => client
-            .post(url)
-            .body(body)
-            .header("Content-Type", "application/x-www-form-urlencoded")
-            .header("Accept", "application/json, text/plain, */*")
-            .header("Accept-Language", "de,en-US;q=0.7,en;q=0.3")
-            .header("Accept-Encoding", "gzip, deflate, br, zstd")
-            .header("X-BRING-CLIENT", "webApp")
-            .header("Origin", "https://web.getbring.com")
-            .header("Connection", "keep-alive")
-            .header("Referer", "https://web.getbring.com/")
-            .header("Sec-Fetch-Dest", "empty")
-            .header("Sec-Fetch-Mode", "cors")
-            .header("Sec-Fetch-Site", "same-site")
-            .header("Priority", "u=0")
-            .header("TE", "trailers"),
+        RequestType::POST => client.post(url).body(body),
     };
     let res = match auth_token {
         Some(token) => res.header(AUTHORIZATION, token),
         None => res,
     };
-
+    let res = res
+        .header("Content-Type", "application/x-www-form-urlencoded")
+        .header("Accept", "application/json, text/plain, */*")
+        .header("Accept-Language", "de,en-US;q=0.7,en;q=0.3")
+        .header("Accept-Encoding", "*")
+        .header("Referer", "https://web.getbring.com/")
+        .header("Origin", "https://web.getbring.com")
+        .header("Connection", "keep-alive")
+        .header("Sec-Fetch-Dest", "empty")
+        .header("Sec-Fetch-Mode", "no-cors")
+        .header("Sec-Fetch-Site", "same-site")
+        .header("Priority", "u=0")
+        .header("Pragma", "no-cache")
+        .header("Cache-Control", "no-cache");
     let res = res.send()?;
     Ok(res)
 }
@@ -126,7 +124,6 @@ impl BringClient {
         }
         let response_body = res.text()?;
         let response: HashMap<String, Value> = serde_json::from_str(&response_body)?;
-
         println!("Login successful!");
         Ok(response)
     }
