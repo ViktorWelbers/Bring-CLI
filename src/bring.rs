@@ -48,12 +48,16 @@ fn make_request(
     let res = match request_type {
         RequestType::GET => client.get(url),
         RequestType::PUT => client.put(url).body(body),
-        RequestType::POST => client.post(url).body(body),
+        RequestType::POST => client
+            .post(url)
+            .body(body)
+            .header("Content-Type", "application/x-www-form-urlencoded"),
     };
     let res = match auth_token {
         Some(token) => res.header(AUTHORIZATION, token),
         None => res,
     };
+
     let res = res.send()?;
     Ok(res)
 }
